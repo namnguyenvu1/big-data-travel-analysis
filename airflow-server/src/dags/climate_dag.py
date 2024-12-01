@@ -2,6 +2,10 @@
 from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
+#from climate_api_etl import fetch_weather_data
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from climate_api_etl import fetch_weather_data
 
 default_args = {
