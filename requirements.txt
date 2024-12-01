@@ -1,0 +1,7 @@
+pyspark 
+pandas 
+requests 
+sqlalchemy
+google-cloud-storage
+python-dotenv
+apache-airflow
