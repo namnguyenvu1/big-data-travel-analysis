@@ -5,10 +5,14 @@ from dotenv import load_dotenv
 import os
 import gcsfs
 import datetime
+import pytz
 
 def fetch_weather_data():
     
-    dt = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+    utc_now = datetime.datetime.now(datetime.timezone.utc)
+    edmonton_tz = pytz.timezone('America/Edmonton') 
+    edmonton_now = utc_now.astimezone(edmonton_tz) 
+    dt = edmonton_now.strftime("%Y-%m-%d %H:%M")
 
     BUCKET_NAME = "climate_analysis_bucket"
     FILE_PATH = f"weather_data/seven_day_forecast {dt}.csv"
@@ -41,3 +45,4 @@ def fetch_weather_data():
     # writing to GCS
     with gcsfs.GCSFileSystem().open(gcs_path, "w") as f:
         df.to_csv(f)
+
