@@ -1,4 +1,3 @@
-
 from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
@@ -8,14 +7,15 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from climate_api_etl import fetch_weather_data
 
+
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
     'start_date': datetime(2024, 12, 1),
     'retries': 1,
     'retry_delay': timedelta(minutes=5),
-    'email': ['liamsarj4@gmail.com'],
-    'email_on_failure': True,
+    'schedule_interval': timedelta(minutes=5),
+    'execution_timeout': timedelta(minutes=2),
 }
 
 dag = DAG(

@@ -1,49 +1,43 @@
-import pyspark
-from pyspark.sql import SparkSession
-from pyspark import SparkConf
 import pandas as pd
 import requests
 import json
-from sqlalchemy import create_engine, text
 from dotenv import load_dotenv
 import os
-
-load_dotenv()
-
+import gcsfs
+import datetime
 
 def fetch_weather_data():
+    
+    dt = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
 
-    # obtain access key
-    service_account_key = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+    BUCKET_NAME = "climate_analysis_bucket"
+    FILE_PATH = f"weather_data/seven_day_forecast {dt}.csv"
 
-    spark = SparkSession.builder \
-    .appName('climate_analysis') \
-    .config("spark.jars", "https://storage.googleapis.com/hadoop-lib/gcs/gcs-connector-hadoop3-latest.jar") \
-    .config("spark.sql.repl.eagerEval.enabled", True) \
-    .getOrCreate()
-
-    # bind key
-    spark._jsc.hadoopConfiguration().set("google.cloud.auth.service.account.json.keyfile", service_account_key)
-
+    # fetch weather data from the API
     url = "https://api.open-meteo.com/v1/forecast"
     params = {
         "latitude": 51.0501,
         "longitude": -114.0853,
         "hourly": "temperature_2m"
     }
-    response = requests.get(url, params=params) # make request to meteo api
+    print("===> Making request")
+    response = requests.get(url, params=params)
     data = response.json()
+    print(data)
 
-    # parse data from json and convert to dataframe
-    hourly_data = data.get('hourly') 
-    time = hourly_data.get('time')
-    temp = hourly_data.get('temperature_2m')
+    # parse data from JSON and convert it to a pandas DataFrame
+    hourly_data = data.get('hourly', {})
+    time = hourly_data.get('time', [])
+    temp = hourly_data.get('temperature_2m', [])
 
-    rows = [{
-        'time': x, 
-        'temp': y
-        } for x, y in zip(time, temp)]
+    rows = [{'time': x, 'temp': y} for x, y in zip(time, temp)]
+    print("===> Creating pandas DataFrame")
+    df = pd.DataFrame(rows)
+    print(df.head())
 
-    spark_df = spark.createDataFrame(rows) # create df
-    # spark_df.show()
-    spark_df.write.mode("append").csv("gs://climate_analysis_bucket/weather_data") # write dataframe to gcp data lake
+    print("===> Writing to GCS")
+    gcs_path = f"gs://{BUCKET_NAME}/{FILE_PATH}"
+    
+    # writing to GCS
+    with gcsfs.GCSFileSystem().open(gcs_path, "w") as f:
+        df.to_csv(f)
