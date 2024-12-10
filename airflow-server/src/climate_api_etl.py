@@ -17,10 +17,10 @@ def fetch_co2_emissions_data():
 
     # Specify your GCS bucket and file path
     BUCKET_NAME = os.getenv("BUCKET_NAME")
-    FILE_PATH = f"annual_co2_emissions.csv"
+    FILE_PATH = f"population_density.csv"
 
     # URL for the CO2 emissions dataset
-    url = "https://ourworldindata.org/grapher/annual-co2-emissions-per-country.csv?v=1&csvType=full&useColumnShortNames=false"
+    url = "https://ourworldindata.org/grapher/population-density.csv?v=1&csvType=full&useColumnShortNames=true"
     
     # Add headers to mimic a browser request
     headers = {
