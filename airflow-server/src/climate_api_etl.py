@@ -1,48 +1,56 @@
 import pandas as pd
 import requests
-import json
 from dotenv import load_dotenv
 import os
 import gcsfs
 import datetime
 import pytz
+import os
 
-def fetch_weather_data():
-    
+def fetch_co2_emissions_data():
+    load_dotenv()
+    # Get the current datetime in UTC and convert to the 'America/Edmonton' timezone
     utc_now = datetime.datetime.now(datetime.timezone.utc)
     edmonton_tz = pytz.timezone('America/Edmonton') 
     edmonton_now = utc_now.astimezone(edmonton_tz) 
     dt = edmonton_now.strftime("%Y-%m-%d %H:%M")
 
-    BUCKET_NAME = "climate_analysis_bucket"
-    FILE_PATH = f"weather_data/seven_day_forecast {dt}.csv"
+    # Specify your GCS bucket and file path
+    BUCKET_NAME = os.getenv("BUCKET_NAME")
+    FILE_PATH = f"annual_co2_emissions.csv"
 
-    # fetch weather data from the API
-    url = "https://api.open-meteo.com/v1/forecast"
-    params = {
-        "latitude": 51.0501,
-        "longitude": -114.0853,
-        "hourly": "temperature_2m"
-    }
-    print("===> Making request")
-    response = requests.get(url, params=params)
-    data = response.json()
-    print(data)
-
-    # parse data from JSON and convert it to a pandas DataFrame
-    hourly_data = data.get('hourly', {})
-    time = hourly_data.get('time', [])
-    temp = hourly_data.get('temperature_2m', [])
-
-    rows = [{'time': x, 'temp': y} for x, y in zip(time, temp)]
-    print("===> Creating pandas DataFrame")
-    df = pd.DataFrame(rows)
-    print(df.head())
-
-    print("===> Writing to GCS")
-    gcs_path = f"gs://{BUCKET_NAME}/{FILE_PATH}"
+    # URL for the CO2 emissions dataset
+    url = "https://ourworldindata.org/grapher/annual-co2-emissions-per-country.csv?v=1&csvType=full&useColumnShortNames=false"
     
-    # writing to GCS
-    with gcsfs.GCSFileSystem().open(gcs_path, "w") as f:
-        df.to_csv(f)
+    # Add headers to mimic a browser request
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+    }
 
+    # Fetch the data from the URL
+    print("===> Making request to fetch CO2 emissions data")
+    response = requests.get(url, headers=headers)
+
+    if response.status_code == 200:
+        print("===> Data successfully fetched")
+        # Convert the response content into a Pandas DataFrame
+        from io import StringIO
+        csv_data = StringIO(response.text)
+        df = pd.read_csv(csv_data)
+
+        print("===> Data preview")
+        print(df.head())
+
+        print("===> Writing to GCS")
+        gcs_path = f"gs://{BUCKET_NAME}/{FILE_PATH}"
+
+        # Write the data to Google Cloud Storage
+        with gcsfs.GCSFileSystem().open(gcs_path, "w") as f:
+            df.to_csv(f, index=False)
+
+        print(f"Data successfully written to {gcs_path}")
+    else:
+        print(f"Failed to fetch data. HTTP Status Code: {response.status_code}")
+
+# Call the function
+fetch_co2_emissions_data()
